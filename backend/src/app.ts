@@ -50,6 +50,7 @@ import { blogRouter, publicBlogRouter } from "./modules/blog/index.js";
 import { interviewRouter } from "./modules/interview/index.js";
 import { driveRouter } from "./modules/drive/index.js";
 import { devGeneratorsRouter } from "./modules/devgenerators/index.js";
+import { sshTerminalRouter } from "./modules/ssh-terminal/index.js";
 import { isS3Configured } from "./lib/s3.js";
 export function createApp() {
   const app = express();
@@ -122,6 +123,7 @@ export function createApp() {
   app.use("/api/blog", blogRouter);
   app.use("/api/drive", driveRouter);
   app.use("/api/dev-generators", devGeneratorsRouter);
+  app.use("/api/ssh-terminal", sshTerminalRouter);
   app.use((_req, res) => res.status(404).json({ error: { code: "NOT_FOUND", message: "Not found" } }));
   app.use(errorHandler);
   void isProd;

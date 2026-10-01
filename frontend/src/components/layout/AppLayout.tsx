@@ -22,6 +22,7 @@ import {
   X,
   Webhook,
   Zap,
+  Terminal,
 } from "lucide-react";
 import { Button } from "@/components/ui/primitives";
 
@@ -68,6 +69,7 @@ const NAV = [
   { to: "/projects", label: "My Projects", icon: FolderKanban },
   { to: "/secrets", label: "Secrets", icon: KeyRound },
   { to: "/network", label: "Network", icon: Globe },
+  { to: "/operations/ssh", label: "SSH Terminal", icon: Terminal },
   { to: "/api-studio", label: "API Studio", icon: Webhook },
   { to: "/dev-generators", label: "Dev Generators", icon: FileCode2 },
   { to: "/quick-access", label: "Quick Access", icon: Zap },

@@ -1,11 +1,12 @@
 import { Github, Linkedin, Mail, Twitter } from "lucide-react";
 
 export const DEFAULT_LEFT_FEATURES = [
-  "Centralized Multi-Cloud Control: Seamlessly oversee AWS, GCP, Azure, and DigitalOcean instances in one place.",
-  "Zero-Trust Secrets & Credential Vault: Securely manage and rotate encrypted application keys, tokens, and SSH credentials.",
+  "Browser SSH Terminal: Connect with password or PEM/PPK keys; credentials are AES-256-GCM sealed, single-use, and never stored in the database.",
+  "Centralized Multi-Cloud Control: Oversee AWS, GCP, Azure, and DigitalOcean instances from one operations hub.",
+  "Zero-Trust Secrets Vault: Encrypted application keys, tokens, and SSH material with role-based access.",
   "API Studio: Test REST APIs, save requests, and run external URLs through a built-in proxy.",
-  "Proactive Health & SSL Guard: Automated TLS certificate expiry alerts, latency benchmarking, and DNS health tracking.",
-  "Streamlined CI/CD & Deployments: Automated release pipeline visibility, webhook alerts, and rollback readiness.",
+  "Health & SSL Guard: Certificate expiry alerts, latency checks, and DNS monitoring.",
+  "CI/CD Visibility: Deployment tracking, webhooks, and release readiness in one place.",
 ];
 
 export const SOCIAL_LINKS = [

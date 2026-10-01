@@ -7,8 +7,10 @@ import { ensureAdminUser } from "./db/ensureAdmin.js";
 import { verifySmtp } from "./lib/mailer.js";
 import { connectRedis } from "./lib/redis.js";
 import { log } from "./lib/logger.js";
+import { attachSshTerminalWebSocket } from "./modules/ssh-terminal/index.js";
 const app = createApp();
 const server = http.createServer(app);
+attachSshTerminalWebSocket(server);
 
 async function main() {
   try {
