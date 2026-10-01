@@ -1,0 +1,91 @@
+name: Production Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop: true
+          command_timeout: 30m
+          script: |
+            set -euo pipefail
+
+            APP_DIR="/var/www/CloudeasyDevops"
+
+            if [ ! -d "$APP_DIR/.git" ]; then
+              echo "Repository not found at $APP_DIR — clone it on the server first."
+              exit 1
+            fi
+
+            cd "$APP_DIR"
+
+            ENV_BACKUP_DIR="$(mktemp -d)"
+            for rel in backend/.env frontend/.env; do
+              if [ -f "$APP_DIR/$rel" ]; then
+                cp -a "$APP_DIR/$rel" "$ENV_BACKUP_DIR/$(echo "$rel" | tr '/' '_')"
+              fi
+            done
+
+            echo ">>> Pull latest main (server .env files are backed up and restored; no git clean)"
+            git fetch origin main
+            git checkout main
+            git reset --hard origin/main
+
+            for rel in backend/.env frontend/.env; do
+              bak="$ENV_BACKUP_DIR/$(echo "$rel" | tr '/' '_')"
+              if [ -f "$bak" ]; then
+                cp -a "$bak" "$APP_DIR/$rel"
+              fi
+            done
+            rm -rf "$ENV_BACKUP_DIR"
+
+            echo ">>> Backend: install, build, migrate"
+            cd "$APP_DIR/backend"
+            npm ci
+            npm run build
+            npm run db:migrate
+
+            if command -v pm2 >/dev/null 2>&1; then
+              pm2 startOrRestart ecosystem.config.cjs --only cloudeasy-backend --update-env
+              pm2 save
+            else
+              echo "PM2 not installed — start backend manually: npm run start"
+              exit 1
+            fi
+
+            echo ">>> Frontend: install and build (uses frontend/.env on server)"
+            cd "$APP_DIR/frontend"
+            npm ci
+            npm run build
+
+            WEB_ROOT="/var/www/html"
+            echo ">>> Publish frontend to $WEB_ROOT"
+            sudo rsync -a --delete --exclude '.env' --exclude '.env.*' "$APP_DIR/frontend/dist/" "$WEB_ROOT/"
+            sudo chown -R www-data:www-data "$WEB_ROOT"
+
+            if command -v nginx >/dev/null 2>&1; then
+              echo ">>> Reload nginx"
+              sudo nginx -t
+              sudo systemctl reload nginx
+            else
+              echo "nginx not found — serve frontend/dist with your web server."
+            fi
+
+            echo ">>> Deploy finished"
