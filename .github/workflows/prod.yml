@@ -5,6 +5,12 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to deploy
+        required: false
+        default: main
+        type: string
 
 concurrency:
   group: production-deploy
@@ -14,9 +20,14 @@ jobs:
   deploy:
     name: Deploy to production
     runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    env:
+      APP_DIR: /var/www/CloudeasyDevops
+      GIT_BRANCH: ${{ github.event.inputs.branch || github.ref_name }}
 
     steps:
-      - name: Deploy over SSH
+      - name: Run deploy.sh on server
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -24,82 +35,25 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script_stop: true
           command_timeout: 30m
+          envs: APP_DIR,GIT_BRANCH
           script: |
             set -euo pipefail
+            export APP_DIR="${APP_DIR:-/var/www/CloudeasyDevops}"
+            export GIT_BRANCH="${GIT_BRANCH:-main}"
+            DEPLOY_SCRIPT="$APP_DIR/deploy/deploy.sh"
 
-            # Non-interactive SSH does not load .bashrc — source nvm for npm/pm2
-            export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
-            if [ -s "$NVM_DIR/nvm.sh" ]; then
-              . "$NVM_DIR/nvm.sh"
+            if [ ! -f "$DEPLOY_SCRIPT" ] && [ -d "$APP_DIR/.git" ]; then
+              echo ">>> Bootstrap: fetch deploy/deploy.sh from origin/$GIT_BRANCH"
+              cd "$APP_DIR"
+              git fetch origin "$GIT_BRANCH"
+              git checkout "$GIT_BRANCH"
+              git reset --hard "origin/$GIT_BRANCH"
             fi
-            if [ -s "$HOME/.profile" ]; then
-              . "$HOME/.profile"
-            fi
-            nvm use default >/dev/null 2>&1 || nvm use node >/dev/null 2>&1 || true
 
-            if ! command -v npm >/dev/null 2>&1; then
-              echo "npm not found. Install Node with nvm on the server, then re-run deploy."
-              exit 1
-            fi
-            echo ">>> Node $(node -v), npm $(npm -v)"
-
-            APP_DIR="/var/www/CloudeasyDevops"
-
-            if [ ! -d "$APP_DIR/.git" ]; then
-              echo "Repository not found at $APP_DIR — clone it on the server first."
+            if [ ! -f "$DEPLOY_SCRIPT" ]; then
+              echo "Missing $DEPLOY_SCRIPT — clone the repo at $APP_DIR first."
               exit 1
             fi
 
-            cd "$APP_DIR"
-
-            ENV_BACKUP_DIR="$(mktemp -d)"
-            for rel in backend/.env frontend/.env; do
-              if [ -f "$APP_DIR/$rel" ]; then
-                cp -a "$APP_DIR/$rel" "$ENV_BACKUP_DIR/$(echo "$rel" | tr '/' '_')"
-              fi
-            done
-
-            echo ">>> Pull latest main (server .env files are backed up and restored; no git clean)"
-            git fetch origin main
-            git checkout main
-            git reset --hard origin/main
-
-            for rel in backend/.env frontend/.env; do
-              bak="$ENV_BACKUP_DIR/$(echo "$rel" | tr '/' '_')"
-              if [ -f "$bak" ]; then
-                cp -a "$bak" "$APP_DIR/$rel"
-              fi
-            done
-            rm -rf "$ENV_BACKUP_DIR"
-
-            echo ">>> Backend: install, build, PM2 (ecosystem.config.cjs)"
-            cd "$APP_DIR/backend"
-            npm ci
-            npm run build
-
-            if ! command -v pm2 >/dev/null 2>&1; then
-              echo "PM2 not found. Install: npm i -g pm2"
-              exit 1
-            fi
-            pm2 startOrRestart ecosystem.config.cjs --only cloudeasy-backend --update-env
-            pm2 save
-
-            echo ">>> Frontend: install and build (uses frontend/.env on server)"
-            cd "$APP_DIR/frontend"
-            npm ci
-            npm run build
-
-            WEB_ROOT="/var/www/html"
-            echo ">>> Publish frontend to $WEB_ROOT"
-            sudo rsync -a --delete --exclude '.env' --exclude '.env.*' "$APP_DIR/frontend/dist/" "$WEB_ROOT/"
-            sudo chown -R www-data:www-data "$WEB_ROOT"
-
-            if command -v nginx >/dev/null 2>&1; then
-              echo ">>> Reload nginx"
-              sudo nginx -t
-              sudo systemctl reload nginx
-            else
-              echo "nginx not found — serve frontend/dist with your web server."
-            fi
-
-            echo ">>> Deploy finished"
+            chmod +x "$DEPLOY_SCRIPT"
+            exec bash "$DEPLOY_SCRIPT"

@@ -20,6 +20,7 @@ import { BlogWorkspace } from "@/pages/blog/BlogWorkspace";
 import { DrivePage } from "@/pages/drive/DrivePage";
 import OverviewPage from "@/pages/OverviewPage";
 import { SshTerminalPage } from "@/pages/operations/SshTerminalPage";
+import { SshVmSessionPage } from "@/pages/operations/SshVmSessionPage";
 import { Skeleton } from "@/components/ui/primitives";
 
 function RequireAuth({ children }: { children: (user: User) => ReactNode }) {
@@ -51,6 +52,14 @@ export function App() {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/operations/ssh/session"
+        element={
+          <RequireAuth>
+            {() => <SshVmSessionPage />}
+          </RequireAuth>
+        }
+      />
       <Route
         element={
           <RequireAuth>

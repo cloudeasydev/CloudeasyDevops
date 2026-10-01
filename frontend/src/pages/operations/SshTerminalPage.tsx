@@ -15,13 +15,13 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { Badge, Button, Input, Skeleton } from "@/components/ui/primitives";
 import { WettyHttpAuthModal } from "@/components/ssh/WettyHttpAuthModal";
-import { WettyVmConnectModal, type WettyVmForm } from "@/components/ssh/WettyVmConnectModal";
+import { SshConnectModal, type SshConnectForm } from "@/components/ssh/SshConnectModal";
+import { createSshTerminalSession, openSshVmSessionTab } from "@/lib/sshTerminal";
 import {
   buildWettySessionUrl,
   clearWettyFrame,
   createWettyPortalSession,
   formatSshLabel,
-  openWettyInNewTab,
   shouldUseWettySignInModal,
   storeWettyFrame,
   terminalEmbedReady,
@@ -44,7 +44,7 @@ export function SshTerminalPage() {
   const [q, setQ] = useState("");
   const [authModalOpen, setAuthModalOpen] = useState(() => shouldUseWettySignInModal());
   const [vmModalOpen, setVmModalOpen] = useState(false);
-  const [vmInitial, setVmInitial] = useState<Partial<WettyVmForm>>({});
+  const [vmInitial, setVmInitial] = useState<Partial<SshConnectForm>>({});
   const [iframeKey, setIframeKey] = useState(0);
   const [frameReady, setFrameReady] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -75,23 +75,41 @@ export function SshTerminalPage() {
 
   const servers = data?.items ?? [];
 
-  const openVmModal = (prefill?: Partial<WettyVmForm>) => {
+  const openVmModal = (prefill?: Partial<SshConnectForm>) => {
     setVmInitial(prefill ?? {});
     setVmModalOpen(true);
   };
 
-  const connectVmNewTab = (form: WettyVmForm) => {
-    if (!embedReady) {
-      toast.error("Sign in to the default terminal first");
-      setAuthModalOpen(true);
+  const connectVm = useMutation({
+    mutationFn: (form: SshConnectForm) => createSshTerminalSession(form),
+    onSuccess: (data, form) => {
+      const port = Number.parseInt(form.port, 10) || 22;
+      const label = formatSshLabel({
+        username: form.username.trim(),
+        ipAddress: form.host.trim(),
+        sshPort: port,
+      });
+      openSshVmSessionTab(data.sessionId, label);
+      setVmModalOpen(false);
+      toast.success("VM session opened in a new tab");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const connectVmFromForm = (form: SshConnectForm) => {
+    if (form.authMode === "privateKey" && !form.privateKey?.trim()) {
+      toast.error("Upload a .pem, .key, or .ppk file");
       return;
     }
-    openWettyInNewTab({
-      ipAddress: form.host.trim(),
-      username: form.username.trim(),
-      sshPort: Number.parseInt(form.port, 10) || 22,
-    });
-    toast.success("VM session opened in a new tab");
+    if (form.authMode === "password" && !form.password) {
+      toast.error("SSH password is required");
+      return;
+    }
+    if (form.authMode === "both" && (!form.password || !form.privateKey?.trim())) {
+      toast.error("Password and private key are required");
+      return;
+    }
+    connectVm.mutate(form);
   };
 
   const reloadDefault = () => {
@@ -146,11 +164,14 @@ export function SshTerminalPage() {
         onConnect={(username, password) => wettySignIn.mutate({ username, password })}
       />
 
-      <WettyVmConnectModal
+      <SshConnectModal
         open={vmModalOpen}
         initial={vmInitial}
+        loading={connectVm.isPending}
+        submitLabel="Open in new tab"
+        description="Password, .pem, .key, or .ppk — credentials are encrypted in Redis for ~90s, then used once when the new tab connects. The default WeTTY shell stays on this page."
         onClose={() => setVmModalOpen(false)}
-        onOpenNewTab={connectVmNewTab}
+        onConnect={connectVmFromForm}
       />
 
       <header className="relative z-10 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -162,7 +183,7 @@ export function SshTerminalPage() {
           <h1 className="page-title">SSH Terminal</h1>
           <p className="page-desc mt-1 max-w-2xl">
             <strong className="text-foreground">Default:</strong> Docker WeTTY in the panel (use sign-in box, not the
-            browser popup). <strong className="text-foreground">Other VM:</strong> Connect to VM → new tab.
+            browser popup). <strong className="text-foreground">Other VM:</strong> password or key (.pem / .ppk) → new tab.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -212,7 +233,7 @@ export function SshTerminalPage() {
                 key={s.id}
                 type="button"
                 onClick={() =>
-                  connectVmNewTab({
+                  openVmModal({
                     host: s.ipAddress,
                     port: String(s.sshPort),
                     username: s.username,
@@ -229,7 +250,7 @@ export function SshTerminalPage() {
                   </div>
                   <Badge className={cn("shrink-0 text-[9px]", envTone(s.environment))}>{s.environment}</Badge>
                 </div>
-                <div className="mt-1 text-[10px] text-faint">Opens in new tab</div>
+                <div className="mt-1 text-[10px] text-faint">Connect with password or key</div>
               </button>
             ))}
           </div>

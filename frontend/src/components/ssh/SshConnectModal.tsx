@@ -27,6 +27,8 @@ type Props = {
   loading?: boolean;
   initial?: Partial<SshConnectForm>;
   closeOnBackdrop?: boolean;
+  submitLabel?: string;
+  description?: string;
   onClose: () => void;
   onConnect: (form: SshConnectForm) => void;
 };
@@ -36,6 +38,8 @@ export function SshConnectModal({
   loading,
   initial,
   closeOnBackdrop = true,
+  submitLabel = "Connect",
+  description,
   onClose,
   onConnect,
 }: Props) {
@@ -68,9 +72,8 @@ export function SshConnectModal({
       closeOnBackdrop={closeOnBackdrop}
     >
       <p className="mb-4 text-sm text-muted">
-        Credentials are sealed with AES-256-GCM in Redis for 90 seconds, bound to your login session and IP, then
-        destroyed after connect. Supports <span className="font-mono">.pem</span>, <span className="font-mono">.key</span>
-        , and <span className="font-mono">.ppk</span>. Nothing is written to the database.
+        {description ??
+          "Credentials are sealed with AES-256-GCM in Redis for 90 seconds, bound to your login session and IP, then destroyed after connect. Supports .pem, .key, and .ppk. Nothing is written to the database."}
       </p>
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="Host / IP">
@@ -167,7 +170,7 @@ export function SshConnectModal({
           Cancel
         </Button>
         <Button type="button" onClick={submit} disabled={loading || !form.host.trim()}>
-          {loading ? "Connecting…" : "Connect"}
+          {loading ? "Connecting…" : submitLabel}
         </Button>
       </div>
     </Modal>

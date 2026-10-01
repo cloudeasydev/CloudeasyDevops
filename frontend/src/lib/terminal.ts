@@ -1,6 +1,7 @@
 import { api } from "./api";
 
-const REMOTE_WETTY = "https://terminal.cloudeasy.site";
+/** Production default shell host (ttyd on terminal.cloudeasy.site). */
+const REMOTE_TERMINAL = "https://terminal.cloudeasy.site";
 const FRAME_TOKEN_KEY = "cloudeasy.wettyFrameToken";
 const FRAME_URL_KEY = "cloudeasy.wettyFrameUrl";
 
@@ -48,7 +49,7 @@ export function resolveTerminalBaseUrl(): string {
     return direct.replace(/\/$/, "");
   }
 
-  return REMOTE_WETTY;
+  return REMOTE_TERMINAL;
 }
 
 export function shouldUseWettySignInModal(): boolean {
