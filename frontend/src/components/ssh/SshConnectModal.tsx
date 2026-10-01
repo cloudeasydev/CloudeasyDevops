@@ -26,11 +26,19 @@ type Props = {
   open: boolean;
   loading?: boolean;
   initial?: Partial<SshConnectForm>;
+  closeOnBackdrop?: boolean;
   onClose: () => void;
   onConnect: (form: SshConnectForm) => void;
 };
 
-export function SshConnectModal({ open, loading, initial, onClose, onConnect }: Props) {
+export function SshConnectModal({
+  open,
+  loading,
+  initial,
+  closeOnBackdrop = true,
+  onClose,
+  onConnect,
+}: Props) {
   const [form, setForm] = useState<SshConnectForm>({ ...defaultForm, ...initial });
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -52,7 +60,13 @@ export function SshConnectModal({ open, loading, initial, onClose, onConnect }: 
   };
 
   return (
-    <Modal open={open} title="SSH connection" onClose={onClose} wide>
+    <Modal
+      open={open}
+      title="Connect to server"
+      onClose={onClose}
+      wide
+      closeOnBackdrop={closeOnBackdrop}
+    >
       <p className="mb-4 text-sm text-muted">
         Credentials are sealed with AES-256-GCM in Redis for 90 seconds, bound to your login session and IP, then
         destroyed after connect. Supports <span className="font-mono">.pem</span>, <span className="font-mono">.key</span>

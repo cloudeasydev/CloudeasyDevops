@@ -114,19 +114,27 @@ export function Modal({
   onClose,
   children,
   wide,
+  closeOnBackdrop = true,
+  className,
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
   children: ReactNode;
   wide?: boolean;
+  /** When false, clicking outside does not close (use for required flows). */
+  closeOnBackdrop?: boolean;
+  className?: string;
 }) {
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4"
+      className={cn(
+        "fixed inset-0 z-[200] flex items-end justify-center p-0 sm:items-center sm:p-4",
+        className,
+      )}
       style={{ background: "var(--color-overlay)" }}
-      onClick={onClose}
+      onClick={closeOnBackdrop ? onClose : undefined}
     >
       <div
         className={cn(
