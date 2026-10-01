@@ -40,10 +40,10 @@ jobs:
             set -euo pipefail
             export APP_DIR="${APP_DIR:-/var/www/CloudeasyDevops}"
             export GIT_BRANCH="${GIT_BRANCH:-main}"
-            DEPLOY_SCRIPT="$APP_DIR/deploy/deploy.sh"
+            DEPLOY_SCRIPT="$APP_DIR/deploy.sh"
 
             if [ ! -f "$DEPLOY_SCRIPT" ] && [ -d "$APP_DIR/.git" ]; then
-              echo ">>> Bootstrap: fetch deploy/deploy.sh from origin/$GIT_BRANCH"
+              echo ">>> Bootstrap: fetch deploy.sh from origin/$GIT_BRANCH"
               cd "$APP_DIR"
               git fetch origin "$GIT_BRANCH"
               git checkout "$GIT_BRANCH"

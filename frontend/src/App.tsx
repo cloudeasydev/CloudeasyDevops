@@ -19,8 +19,6 @@ import { PublicBlogPostPage } from "@/pages/PublicBlogPostPage";
 import { BlogWorkspace } from "@/pages/blog/BlogWorkspace";
 import { DrivePage } from "@/pages/drive/DrivePage";
 import OverviewPage from "@/pages/OverviewPage";
-import { SshTerminalPage } from "@/pages/operations/SshTerminalPage";
-import { SshVmSessionPage } from "@/pages/operations/SshVmSessionPage";
 import { Skeleton } from "@/components/ui/primitives";
 
 function RequireAuth({ children }: { children: (user: User) => ReactNode }) {
@@ -53,14 +51,6 @@ export function App() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route
-        path="/operations/ssh/session"
-        element={
-          <RequireAuth>
-            {() => <SshVmSessionPage />}
-          </RequireAuth>
-        }
-      />
-      <Route
         element={
           <RequireAuth>
             {(user) => <AppLayout user={user} />}
@@ -83,8 +73,6 @@ export function App() {
         <Route path="/network/:rest" element={<Navigate to="/network" replace />} />
         <Route path="/api-studio" element={<ApiStudioPage />} />
         <Route path="/dev-generators" element={<DevGeneratorsPage />} />
-        <Route path="/operations/cloud-shell" element={<Navigate to="/operations/ssh" replace />} />
-        <Route path="/operations/ssh" element={<SshTerminalPage />} />
         <Route path="/quick-access" element={<QuickAccessPage />} />
         <Route path="/drive" element={<DrivePage />} />
         <Route path="/interview" element={<Navigate to="/interview/iam" replace />} />

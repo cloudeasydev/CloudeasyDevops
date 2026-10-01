@@ -7,12 +7,9 @@ import { ensureAdminUser } from "./db/ensureAdmin.js";
 import { verifySmtp } from "./lib/mailer.js";
 import { connectRedis } from "./lib/redis.js";
 import { log } from "./lib/logger.js";
-import { attachSshTerminalWebSocket } from "./modules/ssh-terminal/index.js";
-import { attachWettyFrameUpgrade } from "./modules/wetty-site/index.js";
+
 const app = createApp();
 const server = http.createServer(app);
-attachSshTerminalWebSocket(server);
-attachWettyFrameUpgrade(server);
 
 async function main() {
   try {

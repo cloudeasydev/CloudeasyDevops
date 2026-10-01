@@ -1,7 +1,6 @@
 import { Github, Linkedin, Mail, Twitter } from "lucide-react";
 
 export const DEFAULT_LEFT_FEATURES = [
-  "Browser SSH Terminal: Connect with password or PEM/PPK keys; credentials are AES-256-GCM sealed, single-use, and never stored in the database.",
   "Centralized Multi-Cloud Control: Oversee AWS, GCP, Azure, and DigitalOcean instances from one operations hub.",
   "Zero-Trust Secrets Vault: Encrypted application keys, tokens, and SSH material with role-based access.",
   "API Studio: Test REST APIs, save requests, and run external URLs through a built-in proxy.",

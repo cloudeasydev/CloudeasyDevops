@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# Production deploy — run on the server (or via .github/workflows/prod.yml).
-# Preserves backend/.env, frontend/.env, deploy/ttyd/.env across git reset.
+# Production deploy — run on the server: ./deploy.sh
+# Or via GitHub Actions: .github/workflows/prod.yml
+# Preserves backend/.env and frontend/.env across git reset.
 
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/var/www/CloudeasyDevops}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="${APP_DIR:-$SCRIPT_DIR}"
 WEB_ROOT="${WEB_ROOT:-/var/www/html}"
 GIT_BRANCH="${GIT_BRANCH:-main}"
-ENV_FILES=(backend/.env frontend/.env deploy/ttyd/.env)
+ENV_FILES=(backend/.env frontend/.env)
 
 log() { echo ">>> $*"; }
 
@@ -60,24 +62,7 @@ for rel in "${ENV_FILES[@]}"; do
 done
 rm -rf "$ENV_BACKUP_DIR"
 
-log "Terminal (ttyd Docker) — terminal.cloudeasy.site"
-TTYD_DIR="$APP_DIR/deploy/ttyd"
-if [ -f "$TTYD_DIR/docker-compose.yml" ]; then
-  if command -v docker >/dev/null 2>&1; then
-    cd "$TTYD_DIR"
-    if [ ! -f .env ]; then
-      echo "WARN: $TTYD_DIR/.env missing — copy .env.example to .env and set TTYD_CREDENTIALS"
-    else
-      docker compose pull -q 2>/dev/null || true
-      docker compose up -d --remove-orphans
-      docker compose ps
-    fi
-  else
-    echo "WARN: docker not installed — skip ttyd (run manually on port 3000)"
-  fi
-fi
-
-log "Backend: npm ci, build, PM2 (PORT from backend/.env, e.g. 8000)"
+log "Backend: npm ci, build, PM2"
 cd "$APP_DIR/backend"
 npm ci
 npm run build
@@ -89,7 +74,7 @@ fi
 pm2 startOrRestart ecosystem.config.cjs --only cloudeasy-backend --update-env
 pm2 save
 
-log "Frontend: npm ci, build (uses frontend/.env on server)"
+log "Frontend: npm ci, build"
 cd "$APP_DIR/frontend"
 npm ci
 npm run build
@@ -99,11 +84,9 @@ sudo rsync -a --delete --exclude '.env' --exclude '.env.*' "$APP_DIR/frontend/di
 sudo chown -R www-data:www-data "$WEB_ROOT"
 
 if command -v nginx >/dev/null 2>&1; then
-  log "Reload nginx (api vhost must proxy /api/ to backend PORT, e.g. 8000, with WebSocket upgrade)"
+  log "Reload nginx"
   sudo nginx -t
   sudo systemctl reload nginx
-else
-  echo "nginx not found — serve frontend/dist with your web server."
 fi
 
 log "Deploy finished"

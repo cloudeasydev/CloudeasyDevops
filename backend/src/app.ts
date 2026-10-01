@@ -50,13 +50,11 @@ import { blogRouter, publicBlogRouter } from "./modules/blog/index.js";
 import { interviewRouter } from "./modules/interview/index.js";
 import { driveRouter } from "./modules/drive/index.js";
 import { devGeneratorsRouter } from "./modules/devgenerators/index.js";
-import { sshTerminalRouter } from "./modules/ssh-terminal/index.js";
-import { mountWettyFrameProxy, wettySiteRouter } from "./modules/wetty-site/index.js";
 import { isS3Configured } from "./lib/s3.js";
 export function createApp() {
   const app = express();
   app.set("trust proxy", 1);
-  app.use(helmet({ contentSecurityPolicy: false, frameguard: false }));
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use((req, res, next) => {
     const allowed = parseCorsAllowlist();
     cors({
@@ -97,7 +95,6 @@ export function createApp() {
   });
   app.use("/api/public/blog", publicBlogRouter);
   app.use("/api/auth", authRouter);
-  mountWettyFrameProxy(app);
 
   app.use("/api", apiLimiter, authRequired);
   app.use("/api/dashboard", dashboardRouter);
@@ -125,8 +122,6 @@ export function createApp() {
   app.use("/api/blog", blogRouter);
   app.use("/api/drive", driveRouter);
   app.use("/api/dev-generators", devGeneratorsRouter);
-  app.use("/api/ssh-terminal", sshTerminalRouter);
-  app.use("/api/wetty-site", wettySiteRouter);
   app.use((_req, res) => res.status(404).json({ error: { code: "NOT_FOUND", message: "Not found" } }));
   app.use(errorHandler);
   void isProd;

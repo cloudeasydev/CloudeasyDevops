@@ -29,7 +29,7 @@ export function useMarketingContent() {
   const socialLinks = resolveSocialLinks(footer);
   const projectDescription =
     footer?.projectDescription?.trim() ||
-    `${BRAND_PRODUCT_NAME} is a unified cloud operations hub: encrypted secrets, live browser SSH, API testing, and automated health checks — built for teams running production on AWS, GCP, Azure, and bare metal.`;
+    `${BRAND_PRODUCT_NAME} is a unified cloud operations hub: encrypted secrets, API testing, and automated health checks — built for teams running production on AWS, GCP, Azure, and bare metal.`;
 
   return { branding, companyName, tagline, features, socialLinks, projectDescription };
 }
@@ -92,7 +92,7 @@ export function MarketingHeroBlock({ children }: { children?: ReactNode }) {
       />
       <div className="relative mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:py-16">
         <h1 className="max-w-3xl text-3xl font-semibold leading-tight tracking-tight text-hero-fg sm:text-4xl lg:text-5xl">
-          One workspace for projects, secrets, SSH, and servers.
+          One workspace for projects, secrets, and servers.
         </h1>
         <p className="hero-muted mt-4 max-w-2xl text-base leading-relaxed sm:text-lg">{projectDescription}</p>
 
