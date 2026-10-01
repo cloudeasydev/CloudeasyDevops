@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   ExternalLink,
+  LogIn,
   Maximize2,
   Minimize2,
   Plug,
@@ -13,13 +14,17 @@ import {
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { Badge, Button, Input, Skeleton } from "@/components/ui/primitives";
+import { WettyHttpAuthModal } from "@/components/ssh/WettyHttpAuthModal";
 import { WettyVmConnectModal, type WettyVmForm } from "@/components/ssh/WettyVmConnectModal";
 import {
   buildWettySessionUrl,
+  clearWettyFrame,
+  createWettyPortalSession,
   formatSshLabel,
   openWettyInNewTab,
-  resolveTerminalBaseUrl,
-  terminalEmbedSameOrigin,
+  shouldUseWettySignInModal,
+  storeWettyFrame,
+  terminalEmbedReady,
 } from "@/lib/terminal";
 import { cn, envTone } from "@/lib/utils";
 
@@ -37,6 +42,7 @@ type ServerRow = {
 
 export function SshTerminalPage() {
   const [q, setQ] = useState("");
+  const [authModalOpen, setAuthModalOpen] = useState(() => shouldUseWettySignInModal());
   const [vmModalOpen, setVmModalOpen] = useState(false);
   const [vmInitial, setVmInitial] = useState<Partial<WettyVmForm>>({});
   const [iframeKey, setIframeKey] = useState(0);
@@ -44,9 +50,22 @@ export function SshTerminalPage() {
   const [fullscreen, setFullscreen] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
 
-  const defaultUrl = useMemo(() => buildWettySessionUrl(), []);
-  const wettyBase = resolveTerminalBaseUrl();
-  const sameOrigin = terminalEmbedSameOrigin();
+  const embedReady = terminalEmbedReady();
+  const defaultUrl = useMemo(() => buildWettySessionUrl(), [embedReady, iframeKey]);
+  const defaultLabel = formatSshLabel();
+
+  const wettySignIn = useMutation({
+    mutationFn: ({ username, password }: { username: string; password: string }) =>
+      createWettyPortalSession(username, password),
+    onSuccess: (data) => {
+      storeWettyFrame(data.frameToken, data.frameUrl);
+      setAuthModalOpen(false);
+      setFrameReady(false);
+      setIframeKey((k) => k + 1);
+      toast.success("Default terminal loaded");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["servers", "ssh-terminal", q],
@@ -62,6 +81,11 @@ export function SshTerminalPage() {
   };
 
   const connectVmNewTab = (form: WettyVmForm) => {
+    if (!embedReady) {
+      toast.error("Sign in to the default terminal first");
+      setAuthModalOpen(true);
+      return;
+    }
     openWettyInNewTab({
       ipAddress: form.host.trim(),
       username: form.username.trim(),
@@ -71,6 +95,13 @@ export function SshTerminalPage() {
   };
 
   const reloadDefault = () => {
+    setFrameReady(false);
+    setIframeKey((k) => k + 1);
+  };
+
+  const signInAgain = () => {
+    clearWettyFrame();
+    setAuthModalOpen(true);
     setFrameReady(false);
     setIframeKey((k) => k + 1);
   };
@@ -93,7 +124,11 @@ export function SshTerminalPage() {
     return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
-  const defaultLabel = formatSshLabel();
+  useEffect(() => {
+    if (!import.meta.env.DEV && !terminalEmbedReady()) {
+      setAuthModalOpen(true);
+    }
+  }, []);
 
   return (
     <div
@@ -102,6 +137,15 @@ export function SshTerminalPage() {
         fullscreen && "min-h-screen bg-canvas p-0",
       )}
     >
+      <WettyHttpAuthModal
+        open={authModalOpen || (!import.meta.env.DEV && !embedReady)}
+        loading={wettySignIn.isPending}
+        onClose={() => {
+          if (embedReady) setAuthModalOpen(false);
+        }}
+        onConnect={(username, password) => wettySignIn.mutate({ username, password })}
+      />
+
       <WettyVmConnectModal
         open={vmModalOpen}
         initial={vmInitial}
@@ -117,18 +161,15 @@ export function SshTerminalPage() {
           </div>
           <h1 className="page-title">SSH Terminal</h1>
           <p className="page-desc mt-1 max-w-2xl">
-            <strong className="text-foreground">Default:</strong> Docker WeTTY below (
-            <span className="font-mono text-accent-text">{wettyBase.replace(/^https?:\/\//, "")}</span>).{" "}
-            <strong className="text-foreground">Other VM:</strong> use Connect to VM — opens WeTTY in a new tab.
+            <strong className="text-foreground">Default:</strong> Docker WeTTY in the panel (use sign-in box, not the
+            browser popup). <strong className="text-foreground">Other VM:</strong> Connect to VM → new tab.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Badge className="border border-line bg-panel/90 font-mono text-[10px]">
-            WeTTY · Docker
-          </Badge>
-          <Button type="button" variant="outline" onClick={() => window.open(defaultUrl, "_blank", "noopener")}>
-            <ExternalLink className="h-4 w-4" />
-            Open default in tab
+          <Badge className="border border-line bg-panel/90 font-mono text-[10px]">WeTTY · Docker</Badge>
+          <Button type="button" variant="outline" onClick={signInAgain}>
+            <LogIn className="h-4 w-4" />
+            Terminal sign in
           </Button>
           <Button type="button" onClick={() => openVmModal()}>
             <Plug className="h-4 w-4" />
@@ -162,8 +203,8 @@ export function SshTerminalPage() {
             {isError && <p className="p-3 text-sm text-danger-text">Could not load servers.</p>}
             {!isLoading && !isError && servers.length === 0 && (
               <p className="px-2 py-3 text-xs text-muted">
-                Click <strong className="text-foreground">Connect to VM</strong> and enter IP + username, or add servers
-                to inventory.
+                Use <strong className="text-foreground">Terminal sign in</strong> for the default shell, then{" "}
+                <strong className="text-foreground">Connect to VM</strong> for other hosts.
               </p>
             )}
             {servers.map((s) => (
@@ -207,9 +248,7 @@ export function SshTerminalPage() {
               <span className="h-3 w-3 rounded-full bg-amber-400/90" />
               <span className="h-3 w-3 rounded-full bg-emerald-500/90" />
             </div>
-            <div className="min-w-0 flex-1 truncate px-2 font-mono text-[11px] text-zinc-400">
-              {defaultLabel}
-            </div>
+            <div className="min-w-0 flex-1 truncate px-2 font-mono text-[11px] text-zinc-400">{defaultLabel}</div>
             <button
               type="button"
               className="rounded-md p-1.5 text-zinc-400 hover:bg-white/10"
@@ -228,33 +267,33 @@ export function SshTerminalPage() {
           </div>
 
           <div className="relative min-h-0 flex-1 bg-[#050608]">
-            {!sameOrigin && (
-              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-[#050608]/95 p-6 text-center">
+            {!embedReady && (
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-[#050608]/95 p-6 text-center">
                 <p className="max-w-md text-sm text-zinc-400">
-                  Embedded WeTTY needs same-origin or CSP on{" "}
-                  <span className="font-mono text-zinc-300">terminal.cloudeasy.site</span>. Add{" "}
-                  <span className="font-mono text-xs">frame-ancestors https://cloudeasy.site</span> on the terminal
-                  nginx, or proxy <span className="font-mono">/wetty</span> on the portal host.
+                  Use the <strong className="text-zinc-200">Terminal sign in</strong> box to enter your{" "}
+                  <span className="font-mono">terminal.cloudeasy.site</span> username and password — no browser popup.
                 </p>
-                <Button type="button" onClick={() => window.open(defaultUrl, "_blank", "noopener")}>
-                  <ExternalLink className="h-4 w-4" />
-                  Open default terminal
+                <Button type="button" onClick={() => setAuthModalOpen(true)}>
+                  <LogIn className="h-4 w-4" />
+                  Open sign-in box
                 </Button>
               </div>
             )}
-            {!frameReady && sameOrigin && (
+            {!frameReady && embedReady && (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#050608]/90">
                 <div className="h-10 w-10 animate-spin rounded-full border-2 border-accent/30 border-t-accent" />
               </div>
             )}
-            <iframe
-              key={`default-${iframeKey}`}
-              src={defaultUrl}
-              title="Default WeTTY shell"
-              className="relative z-0 h-full min-h-[min(70vh,720px)] w-full border-0 bg-black"
-              allow="clipboard-read; clipboard-write; fullscreen"
-              onLoad={() => setFrameReady(true)}
-            />
+            {embedReady && (
+              <iframe
+                key={`default-${iframeKey}`}
+                src={defaultUrl}
+                title="Default WeTTY shell"
+                className="relative z-0 h-full min-h-[min(70vh,720px)] w-full border-0 bg-black"
+                allow="clipboard-read; clipboard-write; fullscreen"
+                onLoad={() => setFrameReady(true)}
+              />
+            )}
           </div>
         </section>
       </div>

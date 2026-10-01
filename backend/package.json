@@ -27,6 +27,7 @@
     "express": "^5.1.0",
     "express-rate-limit": "^8.0.1",
     "helmet": "^8.1.0",
+    "http-proxy-middleware": "^4.2.0",
     "ioredis": "^5.7.0",
     "mysql2": "^3.24.5",
     "nodemailer": "^10.0.10",
