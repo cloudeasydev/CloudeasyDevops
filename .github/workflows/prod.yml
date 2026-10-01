@@ -72,19 +72,17 @@ jobs:
             done
             rm -rf "$ENV_BACKUP_DIR"
 
-            echo ">>> Backend: install, build, migrate"
+            echo ">>> Backend: install, build, PM2 (ecosystem.config.cjs)"
             cd "$APP_DIR/backend"
             npm ci
             npm run build
-            npm run db:migrate
 
-            if command -v pm2 >/dev/null 2>&1; then
-              pm2 startOrRestart ecosystem.config.cjs --only cloudeasy-backend --update-env
-              pm2 save
-            else
-              echo "PM2 not installed — start backend manually: npm run start"
+            if ! command -v pm2 >/dev/null 2>&1; then
+              echo "PM2 not found. Install: npm i -g pm2"
               exit 1
             fi
+            pm2 startOrRestart ecosystem.config.cjs --only cloudeasy-backend --update-env
+            pm2 save
 
             echo ">>> Frontend: install and build (uses frontend/.env on server)"
             cd "$APP_DIR/frontend"
