@@ -6,7 +6,7 @@ const globalMongo = globalThis as unknown as {
 };
 
 export function adminEmail() {
-  return (process.env.ADMIN_EMAIL || "admin@cloudeasy.online").trim().toLowerCase();
+  return (process.env.ADMIN_EMAIL || "admin@gmail.com").trim().toLowerCase();
 }
 
 export function isAdminEmail(email: string) {

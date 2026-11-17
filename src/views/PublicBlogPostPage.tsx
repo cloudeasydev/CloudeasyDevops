@@ -35,8 +35,8 @@ export function PublicBlogPostPage() {
     <div className="min-h-dvh bg-canvas">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex h-14 max-w-3xl items-center gap-3 px-4">
-          <Link to="/" className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted hover-surface">
-            <ArrowLeft className="h-4 w-4" /> Home
+          <Link to="/posts" className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted hover-surface">
+            <ArrowLeft className="h-4 w-4" /> Public blog
           </Link>
           <BrandingMark name={companyName} logo={branding?.logo} size="sm" />
         </div>

@@ -120,7 +120,7 @@ export function SignInForm() {
           ? "Open Google Authenticator, Authy, or 1Password and enter the 6-digit code for your account."
           : challengeId
             ? `We sent a 6-digit code to ${email}. Check spam if you don't see it.`
-            : "The platform admin signs in directly. Other emails receive a one-time code."}
+            : "Enter your email to receive a one-time code. Admin uses a fixed OTP in this environment."}
       </p>
 
       <div className="mt-8 space-y-4">

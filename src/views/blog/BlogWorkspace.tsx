@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useOutletContext } from "@/lib/navigation";
 import { format } from "date-fns";
-import { ChevronLeft, ChevronRight, Download, Globe, Lock, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, ExternalLink, Globe, Lock, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, type User } from "@/lib/api";
+import { Link } from "@/lib/navigation";
 import { usePager, type Paginated } from "@/lib/pagination";
 import { Button, Input, Modal } from "@/components/ui/primitives";
 import { RichEditor } from "@/components/docs/RichEditor";
@@ -201,12 +202,23 @@ export function BlogWorkspace() {
 
   return (
     <div className="flex min-h-[480px] flex-col gap-4 lg:h-[calc(100vh-7rem)]">
-      <div className="shrink-0">
-        <h1 className="page-title">Blog</h1>
-        <p className="page-desc mt-1">
-          Write in one place. Use <strong className="text-foreground">Public</strong> to show on the landing page, or{" "}
-          <strong className="text-foreground">Private</strong> to keep notes for yourself only.
-        </p>
+      <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="page-title">Blog</h1>
+          <p className="page-desc mt-1">
+            Write in one place. Use <strong className="text-foreground">Public</strong> to show on the public blog, or{" "}
+            <strong className="text-foreground">Private</strong> to keep notes for yourself only.
+          </p>
+        </div>
+        <Link
+          to="/posts"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-line bg-panel px-3 text-xs font-medium text-foreground hover-surface"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          View public blog
+        </Link>
       </div>
 
       <div className="grid min-h-[420px] flex-1 grid-cols-1 overflow-hidden rounded-xl border border-line bg-panel lg:min-h-0 lg:grid-cols-[minmax(0,280px)_1fr]">
@@ -316,6 +328,17 @@ export function BlogWorkspace() {
                 <Button size="sm" onClick={() => save.mutate({ silent: false })} disabled={!canSave}>
                   Save
                 </Button>
+                {isPublic && activePost.slug ? (
+                  <Link
+                    to={`/posts/${activePost.slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line px-2.5 text-xs font-medium hover-surface"
+                    title="Open this post on the public blog"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" /> View live
+                  </Link>
+                ) : null}
                 <Button size="sm" variant="outline" onClick={exportHtml} title="Export as HTML">
                   <Download className="h-3.5 w-3.5" /> HTML
                 </Button>

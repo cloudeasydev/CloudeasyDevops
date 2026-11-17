@@ -8,7 +8,7 @@ import {
 
 function read(name: string) {
   const raw = process.env[name]?.trim() ?? "";
-  return raw.replace(/^(['"])(.*)\1$/s, "$2").trim();
+  return raw.replace(/^(['"])([\s\S]*)\1$/, "$2").trim();
 }
 
 function settings() {

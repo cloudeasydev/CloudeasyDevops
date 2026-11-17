@@ -343,7 +343,8 @@ export function SettingsPage() {
         <div className="mb-4 flex items-start gap-2 rounded-lg border border-line bg-canvas px-3 py-2.5 text-sm text-muted">
           <Mail className="mt-0.5 h-4 w-4 shrink-0 text-accent-text" />
           <span>
-            You sign in with <strong className="text-foreground">email + OTP</strong>. No password is required.
+            You sign in with <strong className="text-foreground">email + OTP</strong>. Sessions last{" "}
+            <strong className="text-foreground">7 days</strong>, or until you log out.
           </span>
         </div>
 

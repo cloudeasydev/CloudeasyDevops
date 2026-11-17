@@ -52,19 +52,39 @@ function sessionHours() {
 }
 
 function cookieOptions(maxAgeSec: number) {
+  const maxAge = Math.max(0, Math.floor(maxAgeSec));
   return {
     httpOnly: true,
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: maxAgeSec,
+    maxAge,
+    expires: new Date(Date.now() + maxAge * 1000),
   };
 }
 
-function json(data: unknown, status = 200, token?: string | null) {
+/** Absolute login lifetime: SESSION_TTL_HOURS (default 168 = 7 days), or until logout. */
+function sessionTtlSeconds() {
+  return Math.floor(sessionHours() * 3600);
+}
+
+function remainingSessionSeconds(expiresAt: Date | string) {
+  return Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
+}
+
+function json(data: unknown, status = 200, token?: string | null, maxAgeSec?: number) {
   const res = NextResponse.json(data, { status });
-  if (token) res.cookies.set(cookieName(), token, cookieOptions(sessionHours() * 3600));
-  if (token === null) res.cookies.set(cookieName(), "", { ...cookieOptions(0), maxAge: 0 });
+  if (token) res.cookies.set(cookieName(), token, cookieOptions(maxAgeSec ?? sessionTtlSeconds()));
+  if (token === null) {
+    res.cookies.set(cookieName(), "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 0,
+      expires: new Date(0),
+    });
+  }
   return res;
 }
 
@@ -121,16 +141,10 @@ async function currentSession(req: NextRequest) {
   const db = await getDb();
   const session = await loose(db, "sessions").findOne({
     tokenHash: hashToken(token),
-    revokedAt: null,
     expiresAt: { $gt: new Date() },
   });
-  if (!session) return null;
-  const createdAt = session.createdAt ? new Date(session.createdAt).getTime() : Date.now();
-  const fullExpiry = new Date(createdAt + sessionHours() * 3600_000);
-  if (new Date(session.expiresAt).getTime() < fullExpiry.getTime() - 60_000) {
-    await loose(db, "sessions").updateOne({ _id: session._id }, { $set: { expiresAt: fullExpiry } });
-    session.expiresAt = fullExpiry;
-  }
+  // Explicit logout sets revokedAt — treat as logged out until a new sign-in.
+  if (!session || session.revokedAt) return null;
   const user = await loose(db, "users").findOne({ _id: session.userId });
   if (!user || user.status === "suspended") return null;
   return { token, session, user };
@@ -145,7 +159,8 @@ async function requireUser(req: NextRequest) {
 async function issueSession(userId: string, req: NextRequest, mfaPending = false) {
   const token = randomToken(32);
   const db = await getDb();
-  const expiresAt = new Date(Date.now() + sessionHours() * 3600_000);
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + sessionTtlSeconds() * 1000);
   await loose(db, "sessions").insertOne({
     _id: crypto.randomUUID(),
     userId,
@@ -155,10 +170,10 @@ async function issueSession(userId: string, req: NextRequest, mfaPending = false
     mfaPending,
     ip: clientIp(req),
     userAgent: req.headers.get("user-agent") || "",
-    createdAt: new Date(),
+    createdAt: now,
   });
   if (!mfaPending) {
-    await loose(db, "users").updateOne({ _id: userId }, { $set: { lastLoginAt: new Date() } });
+    await loose(db, "users").updateOne({ _id: userId }, { $set: { lastLoginAt: now } });
   }
   return token;
 }
@@ -372,7 +387,8 @@ async function route(req: NextRequest, method: string, path: string, url: URL, b
   }
   if (path === "auth/me" && method === "GET") {
     const auth = await requireUser(req);
-    return json({ user: pub(auth.user) }, 200, auth.token);
+    // Keep cookie aligned with absolute session end (login + 7 days), not a sliding window.
+    return json({ user: pub(auth.user) }, 200, auth.token, remainingSessionSeconds(auth.session.expiresAt));
   }
   if (path === "auth/login-records" && method === "GET") {
     const auth = await requireUser(req);
@@ -394,15 +410,12 @@ async function route(req: NextRequest, method: string, path: string, url: URL, b
   if (path === "auth/otp/send" && method === "POST") {
     const email = String(body.email ?? "").trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, "Enter a valid email address.");
-    if (isAdminEmail(email)) {
-      const user = await ensureUser(email, "CloudEasy Admin");
-      const token = await issueSession(user._id, req, false);
-      await audit(email, "admin_login", "success", { ip: clientIp(req) });
-      return json({ direct: true }, 200, token);
-    }
     const existing = await loose(db, "users").findOne({ email });
     if (existing?.status === "suspended") throw new HttpError(403, "This account is suspended.");
-    const code = generateOtp();
+    // Admin always uses the fixed OTP (OTP_FIXED_CODE / 123456); others use generateOtp().
+    const code = isAdminEmail(email)
+      ? (process.env.OTP_FIXED_CODE?.trim().match(/^\d{6}$/)?.[0] ?? "123456")
+      : generateOtp();
     const challengeId = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + Number(process.env.OTP_EXPIRY_SECONDS || 300) * 1000);
     await loose(db, "otpChallenges").insertOne({
@@ -413,10 +426,14 @@ async function route(req: NextRequest, method: string, path: string, url: URL, b
       expiresAt,
       createdAt: new Date(),
     });
-    if (process.env.OTP_DEV_ECHO === "true" || !process.env.SMTP_HOST) {
+    if (process.env.OTP_DEV_ECHO === "true" || !process.env.SMTP_HOST || isAdminEmail(email)) {
       console.info(`[otp] ${email} ${code}`);
     }
-    return json({ challengeId, isNewUser: !existing, expiresIn: Number(process.env.OTP_EXPIRY_SECONDS || 300) });
+    return json({
+      challengeId,
+      isNewUser: !existing && !isAdminEmail(email),
+      expiresIn: Number(process.env.OTP_EXPIRY_SECONDS || 300),
+    });
   }
   if (path === "auth/otp/verify" && method === "POST") {
     const email = String(body.email ?? "").trim().toLowerCase();
@@ -466,12 +483,22 @@ async function route(req: NextRequest, method: string, path: string, url: URL, b
   }
   if (path === "auth/logout" && method === "POST") {
     const token = req.cookies.get(cookieName())?.value;
-    if (token) await loose(db, "sessions").updateOne({ tokenHash: hashToken(token) }, { $set: { revokedAt: new Date() } });
+    if (token) {
+      await loose(db, "sessions").updateOne(
+        { tokenHash: hashToken(token) },
+        { $set: { revokedAt: new Date(), expiresAt: new Date() } },
+      );
+    }
     return json({ ok: true }, 200, null);
   }
   if (path === "auth/logout-all" && method === "POST") {
     const auth = await currentSession(req);
-    if (auth) await loose(db, "sessions").updateMany({ userId: auth.user._id }, { $set: { revokedAt: new Date() } });
+    if (auth) {
+      await loose(db, "sessions").updateMany(
+        { userId: auth.user._id },
+        { $set: { revokedAt: new Date(), expiresAt: new Date() } },
+      );
+    }
     return json({ ok: true }, 200, null);
   }
   if (path === "auth/password/forgot" && method === "POST") {

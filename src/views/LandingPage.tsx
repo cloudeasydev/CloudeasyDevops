@@ -76,12 +76,12 @@ export function LandingPage() {
           >
             Sign in to portal <ArrowRight className="h-4 w-4" />
           </Link>
-          <a
-            href="#blog"
+          <Link
+            to="/posts"
             className="inline-flex h-11 items-center rounded-md border border-white/25 px-5 text-sm font-medium text-hero-fg hover:bg-white/10"
           >
             Read the blog
-          </a>
+          </Link>
         </div>
       </MarketingHeroBlock>
 

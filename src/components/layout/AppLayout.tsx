@@ -5,14 +5,14 @@ import {
   Bell,
   ChevronDown,
   FileCode2,
-  FileSpreadsheet,
+  // FileSpreadsheet, // Excel sidebar hidden
   GraduationCap,
   FolderKanban,
   Github,
   Globe,
   HardDrive,
   KeyRound,
-  ClipboardCheck,
+  // ClipboardCheck, // EOD sidebar hidden
   LayoutDashboard,
   LockKeyhole,
   Menu,
@@ -69,9 +69,9 @@ const SIDEBAR_STORAGE_KEY = "cloudeasy.sidebarHidden";
 
 const NAV = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { to: "/eod", label: "EOD", icon: ClipboardCheck },
+  // { to: "/eod", label: "EOD", icon: ClipboardCheck }, // EOD sidebar hidden
   { to: "/projects", label: "My Projects", icon: FolderKanban },
-  { to: "/sheet", label: "Excel", icon: FileSpreadsheet },
+  // { to: "/sheet", label: "Excel", icon: FileSpreadsheet }, // Excel sidebar hidden
   { to: "/secrets", label: "Secrets", icon: KeyRound },
   { to: "/network", label: "Network", icon: Globe },
   { to: "/api-studio", label: "API Studio", icon: Webhook },

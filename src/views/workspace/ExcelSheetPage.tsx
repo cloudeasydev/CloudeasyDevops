@@ -138,7 +138,15 @@ export function ExcelSheetPage() {
   const formulaRef = useRef<HTMLDivElement>(null);
   const clipRef = useRef<Cell[][] | null>(null);
   const dragRef = useRef<{ block: Cell[][]; from: { r1: number; r2: number; c1: number; c2: number } } | null>(null);
-  const actionsRef = useRef({
+  const actionsRef = useRef<{
+    copy: () => void;
+    cut: () => void;
+    paste: (text: string) => void;
+    selectAll: () => void;
+    clear: () => void;
+    isMulti: () => boolean;
+    inSheet: (target: EventTarget | null) => boolean;
+  }>({
     copy: () => {},
     cut: () => {},
     paste: (_text: string) => {},

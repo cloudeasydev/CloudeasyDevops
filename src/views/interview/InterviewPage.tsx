@@ -174,7 +174,10 @@ export function InterviewPage() {
       toast.success(topicForm?.id ? "Topic updated" : "Topic added");
       setTopicForm(null);
       refreshLibrary();
-      const created = result && typeof result === "object" && "topic" in result ? result.topic : null;
+      const created =
+        result && typeof result === "object" && "topic" in result
+          ? (result as { topic: { id: string } }).topic
+          : null;
       if (created?.id) nav(`/interview/${created.id}`);
     },
     onError: (error: Error) => toast.error(error.message),
